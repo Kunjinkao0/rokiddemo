@@ -1,22 +1,19 @@
 package f.z.RokidScan
 
-import android.Manifest.permission.MANAGE_EXTERNAL_STORAGE
-import android.Manifest.permission.MANAGE_MEDIA
 import android.Manifest.permission.READ_EXTERNAL_STORAGE
-import android.Manifest.permission.READ_MEDIA_IMAGES
-import android.Manifest.permission.READ_MEDIA_VIDEO
-import android.Manifest.permission.WRITE_EXTERNAL_STORAGE
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
-import android.os.Build
-import android.os.Build.VERSION.SDK_INT
 import android.os.Bundle
 import android.os.Environment
-import android.provider.Settings
+import android.util.Log
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import com.google.zxing.client.android.Intents
 import com.google.zxing.integration.android.IntentIntegrator
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanIntentResult
+import com.journeyapps.barcodescanner.ScanOptions
 import f.z.RokidScan.databinding.ActivityMainBinding
 
 
@@ -47,12 +44,43 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private val barcodeLauncher = registerForActivityResult<ScanOptions, ScanIntentResult>(
+        ScanContract()
+    ) { result: ScanIntentResult ->
+        if (result.contents == null) {
+            val originalIntent = result.originalIntent
+            if (originalIntent == null) {
+                Log.d("MainActivity", "Cancelled scan")
+                Toast.makeText(this@MainActivity, "Cancelled", Toast.LENGTH_LONG).show()
+            } else if (originalIntent.hasExtra(Intents.Scan.MISSING_CAMERA_PERMISSION)) {
+                Log.d(
+                    "MainActivity",
+                    "Cancelled scan due to missing camera permission"
+                )
+                Toast.makeText(
+                    this@MainActivity,
+                    "Cancelled due to missing camera permission",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        } else {
+            Log.d("MainActivity", "Scanned")
+            Toast.makeText(
+                this@MainActivity,
+                "Scanned: " + result.contents,
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
     private fun startQRCodeScanning() {
-        val integrator = IntentIntegrator(this)
-        integrator.setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
-        integrator.setPrompt("Scan a QR Code")
-        integrator.setOrientationLocked(true)
-        integrator.initiateScan()
+//        val integrator = IntentIntegrator(this)
+//        integrator.setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
+//        integrator.setPrompt("Scan a QR Code")
+//        integrator.setOrientationLocked(true)
+//        integrator.initiateScan()
+
+//        scanForResult.launch(Intent(this, ScannerActivity::class.java))
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
