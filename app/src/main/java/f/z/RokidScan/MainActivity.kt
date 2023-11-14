@@ -25,7 +25,7 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        requestPermission();
+        requestPermission()
 
         binding.scan.setOnClickListener {
             startQRCodeScanning()

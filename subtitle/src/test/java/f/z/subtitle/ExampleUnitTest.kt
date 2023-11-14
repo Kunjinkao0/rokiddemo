@@ -1,4 +1,4 @@
-package com.example.myapplication
+package f.z.subtitle
 
 import org.junit.Test
 
