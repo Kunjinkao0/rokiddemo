@@ -9,19 +9,28 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="From: "
-        android:textStyle="bold" />
+        android:textStyle="bold"
+        android:visibility="gone" />
 
     <TextView
         android:id="@+id/toTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="To: "
-        android:textStyle="bold" />
+        android:textStyle="bold"
+        android:visibility="gone" />
 
     <TextView
         android:id="@+id/contentTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="Message Content" />
+        android:gravity="center_vertical"
+        android:paddingVertical="24px"
+        android:shadowColor="#333"
+        android:shadowDx="2"
+        android:shadowDy="2"
+        android:shadowRadius="2"
+        android:text="Message Content"
+        android:textColor="#fff"
+        android:textSize="24dp" />
 </LinearLayout>

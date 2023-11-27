@@ -15,5 +15,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "Rokid Demo"
-include(":app")
-include(":subtitle")
+include(":scan-app")
+include(":subtitle-app")

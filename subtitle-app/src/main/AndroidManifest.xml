@@ -7,12 +7,14 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.MyApplication">
+        android:theme="@style/Theme.MyApplication.Fullscreen">
         <activity
             android:name=".MainActivity"
+            android:configChanges="orientation|keyboardHidden"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.MyApplication">
+            android:screenOrientation="landscape"
+            android:theme="@style/Theme.MyApplication.Fullscreen">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
