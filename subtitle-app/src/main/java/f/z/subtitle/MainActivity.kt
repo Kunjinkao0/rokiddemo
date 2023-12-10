@@ -1,30 +1,35 @@
 package f.z.subtitle
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Base64
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AdapterView
 import android.widget.BaseAdapter
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import f.z.subtitle.databinding.ActivityMainBinding
 import f.z.subtitle.databinding.ListItemChatBinding
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.WebSocket
-import okhttp3.WebSocketListener
+import okhttp3.RequestBody
+import okhttp3.Response
+import org.json.JSONArray
+import java.io.IOException
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var chatAdapter: ChatAdapter
 
     private val chatItems = mutableListOf<ChatItem>()
-
-    private var webSocket: WebSocket? = null
-    private var socketConnected = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,63 +39,147 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         binding.mockButton.setOnClickListener {
-            Handler(Looper.getMainLooper()).postDelayed({
-                addChatItem(ChatItem("User", "Bot", "Hello, this is a mock chat message."))
-            }, 1000)
+            getChatList()
         }
 
         chatAdapter = ChatAdapter()
         binding.listView.adapter = chatAdapter
-
-//        connectWebSocket()
+        binding.listView.setOnItemClickListener { adapterView: AdapterView<*>, v: View, index: Int, l: Long ->
+            val item = chatItems[index]
+            if (item.isPic) {
+                showPic(item)
+            } else {
+                hidePic()
+            }
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        webSocket?.cancel()
     }
 
-    private fun addChatItem(item: ChatItem) {
-        chatItems.add(item)
-        chatAdapter.notifyDataSetChanged()
-        binding.listView.post { binding.listView.smoothScrollToPosition(chatAdapter.count - 1) }
-    }
+    private fun getChatList() {
+        val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
+        val requestBody = RequestBody.create(mediaType, "{\"key\":\"value\"}")
 
-    private fun connectWebSocket() {
+//        val url = "http://192.168.0.250:5000/get_conversation"
+        val url = "http://192.168.31.237:3000/data"
+        val request = Request.Builder().url(url).get().build()
+
+
         val client = OkHttpClient()
-
-        val request = Request.Builder().url("wss://example.com/your-websocket-url").build()
-
-        val webSocketListener = object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: okhttp3.Response) {
-                super.onOpen(webSocket, response)
-                socketConnected = true
-                Toast.makeText(this@MainActivity, "Connect Success", Toast.LENGTH_LONG).show();
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                e.printStackTrace()
             }
 
-            override fun onMessage(webSocket: WebSocket, text: String) {
-                super.onMessage(webSocket, text)
-                // Handle incoming messages here
-                runOnUiThread {
-                    addChatItem(ChatItem("from", "to", text))
+            override fun onResponse(call: Call, response: Response) {
+                // Handle the response
+                if (response.isSuccessful) {
+                    try {
+                        val responseData = response.body!!.string()
+                        processResponse(responseData)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+        })
+    }
+
+    private fun processResponse(jsonString: String) {
+        chatItems.clear()
+        val jsonArray = JSONArray(jsonString)
+        for (i in 0 until jsonArray.length()) {
+            val jsonObject = jsonArray.getJSONObject(i)
+            val jai = jsonObject.get("ai")
+            val juser = jsonObject.getString("user")
+
+            val userItem = ChatItem()
+            userItem.from = "User";
+            userItem.content = juser
+
+            val aiItem = ChatItem()
+            aiItem.from = "AI";
+            when (jai) {
+                is String -> {
+                    aiItem.content = jai
+                }
+
+                is JSONArray -> {
+                    when (jai.getString(0)) {
+                        "take photo" -> {
+                            aiItem.isPic = true
+                            aiItem.picBase64 = jsonObject.getString("photo_base64")
+                            aiItem.content = "[click to see picture]"
+                        }
+
+                        "control robot" -> {
+                            aiItem.content = "[controling robot...]"
+                        }
+                    }
                 }
             }
 
-            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                super.onClosed(webSocket, code, reason)
-                socketConnected = false
-            }
-
-            override fun onFailure(
-                webSocket: WebSocket, t: Throwable, response: okhttp3.Response?
-            ) {
-                super.onFailure(webSocket, t, response)
-                socketConnected = false
-                Toast.makeText(this@MainActivity, "Connect Failure", Toast.LENGTH_LONG).show();
-            }
+            chatItems.add(userItem)
+            chatItems.add(aiItem)
         }
 
-        webSocket = client.newWebSocket(request, webSocketListener)
+        runOnUiThread {
+            chatAdapter.notifyDataSetChanged()
+            binding.listView.post { binding.listView.smoothScrollToPosition(chatAdapter.count - 1) }
+
+            if (chatItems.size == 0) return@runOnUiThread
+
+            val lastItem = chatItems.findLast { it.from == "AI" }!!;
+            if (lastItem.isPic) {
+                showPic(lastItem)
+            } else {
+                hidePic()
+            }
+        }
+    }
+
+    private fun showPic(item: ChatItem) {
+        if (binding.image.visibility == View.VISIBLE) return
+
+        binding.image.apply {
+            setImageBitmap(convertBase64Image(item.picBase64!!))  // Set the bitmap to ImageView
+            visibility = View.VISIBLE  // Make the view visible
+            alpha = 0f               // Start from fully transparent
+            scaleX = 0.8f            // Start a bit smaller
+            scaleY = 0.8f
+
+            animate().alpha(1f)          // Animate to fully opaque
+                .scaleX(1f)         // Animate to normal size
+                .scaleY(1f).setDuration(200)  // Duration of the animation
+                .setListener(null)  // Add a listener if you need to do something when the animation ends
+        }
+    }
+
+    private fun hidePic() {
+        if (binding.image.visibility != View.VISIBLE) return
+
+        binding.image.apply {
+            setImageDrawable(null) // recycle
+            animate().alpha(0f)          // Fade out (alpha goes to 0)
+                .scaleX(0.8f)       // Scale down slightly
+                .scaleY(0.8f).setDuration(200)  // Duration of the animation
+                .withEndAction {
+                    visibility = View.GONE // Hide the view after animation ends
+                }.start()
+        }
+    }
+
+    private fun convertBase64Image(base64String: String): Bitmap? {
+        return try {
+            val imageBytes = Base64.decode(base64String, Base64.DEFAULT)
+            val decodedImage = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+            decodedImage
+        } catch (e: IllegalArgumentException) {
+            e.printStackTrace()
+            null
+        }
     }
 
     private inner class ChatAdapter : BaseAdapter() {
@@ -117,16 +206,18 @@ class MainActivity : AppCompatActivity() {
                 ListItemChatBinding.bind(convertView)
             }
 
-            binding.fromTextView.text = chatItem.from
-            binding.toTextView.text = chatItem.to
-            binding.contentTextView.text = "" // empty previous first
+//            binding.fromTextView.text = chatItem.from
+//            binding.toTextView.text = chatItem.to
+//            binding.contentTextView.text = "" // empty previous first
 
-            if (showedItems.contains(chatItem.id)) {
-                binding.contentTextView.text = chatItem.content
-            } else {
-                animateText(chatItem.content, binding.contentTextView)
-                showedItems.add(chatItem.id)
-            }
+//            if (showedItems.contains(chatItem.id)) {
+//                binding.contentTextView.text = chatItem.content
+//            } else {
+////                animateText(chatItem.content, binding.contentTextView)
+//                showedItems.add(chatItem.id)
+//            }
+            binding.fromTextView.text = chatItem.from + ":"
+            binding.contentTextView.text = chatItem.content
 
             return binding.root
         }
