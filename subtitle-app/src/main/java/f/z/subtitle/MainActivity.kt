@@ -6,12 +6,14 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Base64
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.BaseAdapter
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import f.z.subtitle.databinding.ActivityMainBinding
 import f.z.subtitle.databinding.ListItemChatBinding
@@ -31,6 +33,14 @@ class MainActivity : AppCompatActivity() {
 
     private val chatItems = mutableListOf<ChatItem>()
 
+    private val handler = Handler(Looper.getMainLooper())
+    private val runnable = object : Runnable {
+        override fun run() {
+            getChatList()
+            handler.postDelayed(this, 5000) // schedule the runnable again after 5 seconds
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_FULLSCREEN
@@ -41,6 +51,7 @@ class MainActivity : AppCompatActivity() {
         binding.mockButton.setOnClickListener {
             getChatList()
         }
+        binding.mockButton.visibility = View.GONE
 
         chatAdapter = ChatAdapter()
         binding.listView.adapter = chatAdapter
@@ -52,18 +63,37 @@ class MainActivity : AppCompatActivity() {
                 hidePic()
             }
         }
+        handler.post(runnable)
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        handler.removeCallbacks(runnable)
+    }
+
+    private var firstTime: Long = 0
+    override fun onBackPressed() {
+        if (binding.image.visibility == View.VISIBLE) {
+            hidePic()
+        } else {
+            val secondTime = System.currentTimeMillis()
+            if (secondTime - firstTime > 2000) {
+                Toast.makeText(
+                    this@MainActivity, "Press one more time to exit the app", Toast.LENGTH_SHORT
+                ).show()
+                firstTime = secondTime
+            } else {
+                super.onBackPressed()
+            }
+        }
     }
 
     private fun getChatList() {
         val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
         val requestBody = RequestBody.create(mediaType, "{\"key\":\"value\"}")
 
-//        val url = "http://192.168.0.250:5000/get_conversation"
-        val url = "http://192.168.31.237:3000/data"
+        val url = "http://192.168.0.250:5000/get_conversation"
+//        val url = "http://192.168.31.237:3000/data"
         val request = Request.Builder().url(url).get().build()
 
 
@@ -78,6 +108,7 @@ class MainActivity : AppCompatActivity() {
                 if (response.isSuccessful) {
                     try {
                         val responseData = response.body!!.string()
+                        Log.v("HTTP", responseData)
                         processResponse(responseData)
                     } catch (e: Exception) {
                         e.printStackTrace()
@@ -88,8 +119,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun processResponse(jsonString: String) {
-        chatItems.clear()
         val jsonArray = JSONArray(jsonString)
+        if (jsonArray.length() * 2 == chatItems.size) return
+
+        chatItems.clear()
         for (i in 0 until jsonArray.length()) {
             val jsonObject = jsonArray.getJSONObject(i)
             val jai = jsonObject.get("ai")
@@ -107,27 +140,29 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 is JSONArray -> {
-                    when (jai.getString(0)) {
+                    val action = jai.getString(0)
+                    when (action) {
                         "take photo" -> {
                             aiItem.isPic = true
                             aiItem.picBase64 = jsonObject.getString("photo_base64")
                             aiItem.content = "[click to see picture]"
                         }
 
-                        "control robot" -> {
-                            aiItem.content = "[controling robot...]"
+                        else -> {
+                            aiItem.content = "[$action]"
                         }
                     }
                 }
             }
 
+            chatItems.add(aiItem) // reverse
             chatItems.add(userItem)
-            chatItems.add(aiItem)
         }
+        chatItems.reverse()
 
         runOnUiThread {
             chatAdapter.notifyDataSetChanged()
-            binding.listView.post { binding.listView.smoothScrollToPosition(chatAdapter.count - 1) }
+//            binding.listView.post { binding.listView.smoothScrollToPosition(chatAdapter.count - 1) }
 
             if (chatItems.size == 0) return@runOnUiThread
 
@@ -216,7 +251,7 @@ class MainActivity : AppCompatActivity() {
 ////                animateText(chatItem.content, binding.contentTextView)
 //                showedItems.add(chatItem.id)
 //            }
-            binding.fromTextView.text = chatItem.from + ":"
+            binding.fromTextView.text = "From " + chatItem.from + ":"
             binding.contentTextView.text = chatItem.content
 
             return binding.root

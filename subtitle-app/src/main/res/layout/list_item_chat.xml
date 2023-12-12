@@ -3,13 +3,15 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="16dp"
+    android:paddingLeft="120dp">
 
     <TextView
         android:id="@+id/fromTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="From: "
+        android:textSize="32dp"
         android:textStyle="bold" />
 
     <TextView
@@ -32,5 +34,5 @@
         android:shadowRadius="2"
         android:text="Message Content"
         android:textColor="#fff"
-        android:textSize="24dp" />
+        android:textSize="40dp" />
 </LinearLayout>

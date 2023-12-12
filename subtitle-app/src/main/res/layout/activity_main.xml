@@ -16,7 +16,7 @@
         android:layout_gravity="end|bottom"
         android:layout_marginEnd="12dp"
         android:layout_marginBottom="12dp"
-        android:text="Add Item" />
+        android:text="Refresh" />
 
     <ImageView
         android:id="@+id/image"
@@ -27,5 +27,6 @@
         android:adjustViewBounds="true"
         android:background="@drawable/border"
         android:padding="2dp"
-        android:scaleType="fitCenter" />
+        android:scaleType="fitCenter"
+        android:visibility="gone" />
 </FrameLayout>
